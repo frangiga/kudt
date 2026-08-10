@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<!-- SI ESTÁS VIENDO ESTO PARA SOLUCIONAR EL MYSTERY, ERES UN MISERABLE QUE NO MERECE ESTE CACHÉ -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KUDT - Juego de Memoria</title>
+<style>
+/* --- PALETA DE COLOR Y GLOW MODERNO --- */
+:root {
+  --gc-dark-bg: #061710;
+  --gc-bg-gradient: radial-gradient(circle at 50% 30%, #1b4332 0%, #081c15 70%, #040e0a 100%);
+  --gc-card-bg: rgba(45, 106, 79, 0.45);
+  --gc-green: #028741;
+  --gc-light-green: #52b788;
+  --gc-accent: #74c69d;
+  --glow-green: rgba(82, 183, 136, 0.5);
+  --glow-gold: rgba(255, 215, 0, 0.4);
+  --glow-orange: rgba(255, 140, 0, 0.5);
+  --glow-red: rgba(231, 76, 60, 0.6);
+  --white: #ffffff;
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+html, body {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--gc-bg-gradient);
+  color: var(--white);
+}
+
+/* --- SELECTOR DE IDIOMAS --- */
+#language-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--gc-bg-gradient);
+  z-index: 1000;
+  padding: 20px;
+}
+#language-selector h2 {
+  color: var(--gc-accent);
+  margin-bottom: 30px;
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  text-align: center;
+  text-shadow: 0 0 15px var(--glow-green), 0 2px 4px rgba(0,0,0,0.8);
+  letter-spacing: 2px;
+}
+.lang-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 520px;
+  width: 100%;
+}
+.lang-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 10px;
+  border: 1px solid rgba(82, 183, 136, 0.3);
+  border-radius: 16px;
+  background: rgba(20, 50, 35, 0.5);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  overflow: hidden;
+}
+.lang-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+.lang-btn:hover::before {
+  left: 150%;
+}
+.lang-btn:hover {
+  border-color: var(--gc-light-green);
+  background: rgba(45, 106, 79, 0.75);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(2, 135, 65, 0.4), 0 0 15px var(--glow-green);
+}
+.lang-btn img {
+  width: 48px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.5);
+}
+.lang-btn span {
+  font-size: clamp(0.8rem, 2.5vw, 0.95rem);
+  font-weight: 600;
+  color: #e0f2fe;
+  letter-spacing: 0.5px;
+}
+
+/* --- CONTENEDOR PRINCIPAL --- */
+#game-container {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 12px 15px;
+}
+h1 {
+  color: var(--gc-accent);
+  font-size: clamp(1.2rem, 3.5vw, 1.8rem);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-align: center;
+  margin-top: 5px;
+  text-shadow: 0 0 12px var(--glow-green), 0 2px 4px rgba(0,0,0,0.8);
+}
+
+/* --- TABLERO DINÁMICO --- */
+#game-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: clamp(8px, 1.5vw, 14px);
+  width: min(85vw, 52vh);
+  height: min(85vw, 52vh);
+  perspective: 1000px;
+  margin: auto 0;
+}
+.card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+  cursor: pointer;
+  border-radius: 12px;
+}
+.card:hover {
+  box-shadow: 0 0 15px var(--glow-green);
+}
+.card.flip {
+  transform: rotateY(180deg);
+}
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+  overflow: hidden;
+  border: 1px solid rgba(82, 183, 136, 0.3);
+}
+.card-back {
+  background-color: var(--gc-dark-bg);
+}
+.card-back img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.card-front {
+  transform: rotateY(180deg);
+  background-color: #ffffff;
+  padding: 6px;
+}
+.card-front img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.img-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--gc-dark-bg);
+  word-break: break-all;
+  padding: 4px;
+}
+
+/* --- CONTADOR INFERIOR --- */
+#timer-container {
+  display: none;
+  font-size: clamp(1rem, 3vw, 1.3rem);
+  font-weight: bold;
+  color: #ffd166;
+  background: rgba(4, 14, 10, 0.8);
+  border: 1px solid var(--gc-light-green);
+  padding: 8px 20px;
+  border-radius: 20px;
+  box-shadow: 0 0 15px var(--glow-gold);
+  margin-bottom: 5px;
+  letter-spacing: 1px;
+}
+
+/* --- FIRMA CON ENLACES --- */
+.footer-signature {
+  width: 100%;
+  max-width: 600px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  padding: 8px 0;
+  font-size: clamp(0.85rem, 2.5vw, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.sig-link {
+  color: var(--gc-accent);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.sig-link:hover {
+  color: #ffffff;
+  text-shadow: 0 0 8px var(--gc-light-green);
+  transform: translateY(-2px);
+}
+.sig-left { grid-column: 1; text-align: center; }
+.sig-right { grid-column: 3; text-align: center; }
+
+/* --- VENTANAS EMERGENTES (MODALES) --- */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(4, 14, 10, 0.85);
+  backdrop-filter: blur(8px);
+  justify-content: center;
+  align-items: center;
+  padding: 15px;
+}
+.modal-content {
+  background: linear-gradient(145deg, #1b4332 0%, #081c15 100%);
+  border: 1px solid var(--gc-light-green);
+  padding: 28px 22px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.8), 0 0 25px var(--glow-green);
+  max-width: 420px;
+  width: 100%;
+  animation: modalFadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.85) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal h2 {
+  color: #ffffff;
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+  text-shadow: 0 0 10px var(--glow-green);
+}
+.modal p {
+  font-size: 0.95rem;
+  color: #d8f3dc;
+  line-height: 1.5;
+  margin-bottom: 15px;
+  text-align: center;
+}
+.password-input {
+  width: 100%;
+  padding: 12px;
+  margin: 15px 0 5px 0;
+  border-radius: 12px;
+  border: 1px solid var(--gc-accent);
+  background: rgba(4, 14, 10, 0.9);
+  color: #ffffff;
+  font-size: 1.2rem;
+  text-align: center;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  outline: none;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+.password-input:focus {
+  border-color: var(--gc-light-green);
+  box-shadow: 0 0 10px var(--glow-green), inset 0 2px 4px rgba(0,0,0,0.5);
+}
+.error-msg {
+  color: #ff6b6b;
+  font-size: 0.85rem;
+  margin-top: 5px;
+  display: none;
+  font-weight: bold;
+}
+.code-container {
+  background-color: rgba(4, 14, 10, 0.9);
+  border: 1px dashed var(--gc-accent);
+  padding: 10px 14px;
+  margin: 16px 0;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+#final-code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.15rem;
+  font-weight: bold;
+  color: #ffffff;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px rgba(255,255,255,0.5);
+}
+.action-btn {
+  display: inline-block;
+  width: 100%;
+  background: linear-gradient(135deg, var(--gc-green) 0%, #015c2c 100%);
+  color: var(--white);
+  border: 1px solid var(--gc-light-green);
+  padding: 12px 0;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(2, 135, 65, 0.4);
+  margin-top: 10px;
+}
+.action-btn:hover {
+  background: var(--gc-light-green);
+  color: #040e0a;
+  box-shadow: 0 0 20px var(--glow-green);
+  transform: translateY(-2px);
+}
+.copy-btn {
+  background: linear-gradient(135deg, var(--gc-green) 0%, #015c2c 100%);
+  color: var(--white);
+  border: 1px solid var(--gc-light-green);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.copy-btn:hover {
+  background: var(--gc-light-green);
+  color: #040e0a;
+  box-shadow: 0 0 12px var(--glow-green);
+}
+.certitude-btn {
+  display: inline-block;
+  width: 100%;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: var(--white);
+  text-decoration: none;
+  padding: 12px 0;
+  border-radius: 25px;
+  font-weight: bold;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+  border: 1px solid rgba(255,255,255,0.2);
+  margin-bottom: 10px;
+}
+.certitude-btn:hover {
+  background: linear-gradient(135deg, #1a8cff 0%, #0066cc 100%);
+  box-shadow: 0 0 20px rgba(0, 123, 255, 0.7);
+  transform: translateY(-2px);
+}
+.spoiler-btn {
+  display: inline-block;
+  width: 100%;
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  color: var(--white);
+  text-decoration: none;
+  padding: 12px 0;
+  border-radius: 25px;
+  font-weight: bold;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(230, 126, 34, 0.4);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.spoiler-btn:hover {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  box-shadow: 0 0 20px var(--glow-orange);
+  transform: translateY(-2px);
+}
+@media (max-width: 360px) {
+  .lang-options { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- PANTALLA SELECTOR DE IDIOMAS -->
+<div id="language-selector">
+  <h2>SELECT LANGUAGE</h2>
+  <div class="lang-options">
+    <button class="lang-btn" onclick="selectLanguage('es')"><img src="https://flagcdn.com/w80/es.png" alt="Español"><span>Español</span></button>
+    <button class="lang-btn" onclick="selectLanguage('en')"><img src="https://flagcdn.com/w80/gb.png" alt="English"><span>English</span></button>
+    <button class="lang-btn" onclick="selectLanguage('fr')"><img src="https://flagcdn.com/w80/fr.png" alt="Français"><span>Français</span></button>
+    <button class="lang-btn" onclick="selectLanguage('pt')"><img src="https://flagcdn.com/w80/pt.png" alt="Português"><span>Português</span></button>
+    <button class="lang-btn" onclick="selectLanguage('de')"><img src="https://flagcdn.com/w80/de.png" alt="Deutsch"><span>Deutsch</span></button>
+    <button class="lang-btn" onclick="selectLanguage('it')"><img src="https://flagcdn.com/w80/it.png" alt="Italiano"><span>Italiano</span></button>
+  </div>
+</div>
+
+<!-- MODAL DE CONTRASEÑA -->
+<div id="password-modal" class="modal">
+  <div class="modal-content">
+    <h2 id="pass-title">CONTRASEÑA DE ACCESO</h2>
+    <p id="pass-desc">Introduce la clave para acceder al juego:</p>
+    <input type="text" id="pass-input" class="password-input" autocomplete="off" spellcheck="false" oninput="this.value = this.value.toUpperCase(); checkPassInput();" placeholder="..."/>
+    <div id="pass-error" class="error-msg">Contraseña incorrecta</div>
+    <button class="action-btn" id="pass-btn" onclick="validatePassword()">ENTRAR</button>
+  </div>
+</div>
+
+<!-- MODAL DE REGLAS -->
+<div id="rules-modal" class="modal">
+  <div class="modal-content">
+    <h2 id="rules-title">REGLAS DEL JUEGO</h2>
+    <p id="rules-text"></p>
+    <button class="action-btn" id="start-btn" onclick="startMemoryPhase()">¡ENTENDIDO!</button>
+  </div>
+</div>
+
+<!-- PANTALLA PRINCIPAL DEL JUEGO -->
+<div id="game-container">
+  <h1 id="game-title">KUDT</h1>
+  <div id="game-board"></div>
+  <div id="timer-container"><span id="timer-label">Tiempo: </span><span id="timer-count">20</span>s</div>
+  
+  <!-- FIRMA CON ENLACES -->
+  <footer class="footer-signature">
+    <div class="sig-left"><a href="https://www.geocaching.com/plan/lists/BMFC2Z7" target="_blank" class="sig-link">GeoPaterna</a></div>
+    <div class="sig-right"><a href="https://www.geocaching.com/p/?guid=8aa34b6e-769c-42e2-ab66-4163f9a40e13&wid=bc617212-c64f-4373-b188-8d6e9a96b1f2&ds=2" target="_blank" class="sig-link">fran_giga</a></div>
+  </footer>
+</div>
+
+<!-- MODAL FINAL DE VICTORIA -->
+<div id="end-modal" class="modal">
+  <div class="modal-content">
+    <h2 id="modal-congrats">¡Enhorabuena!</h2>
+    <p id="modal-message"></p>
+    <div class="code-container">
+      <span id="final-code">ESTO-ES-KUDT</span>
+      <button class="copy-btn" id="copy-button" onclick="copyCode()">Copiar</button>
+    </div>
+    <a href="https://www.certitudes.org/certitude?wp=GCBVTBN" target="_blank" class="certitude-btn" id="certitude-link">IR A CERTITUDE</a>
+    <a href="https://drive.google.com/file/d/1snRpXGoZUuYT_lplhHsiY7G8PmqpwbhP/view?usp=sharing" target="_blank" class="spoiler-btn" id="spoiler-link">FOTO SPOILER</a>
+  </div>
+</div>
+
+<script>
+/* --- SISTEMA DE SONIDOS CON WEB AUDIO API --- */
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function playFlipSound() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.08);
+  gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.08);
+}
+
+function playMatchSound() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(523.25, now);
+  osc.frequency.setValueAtTime(659.25, now + 0.1);
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.3);
+}
+
+function playMismatchSound() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(180, now);
+  osc.frequency.linearRampToValueAtTime(130, now + 0.2);
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.2);
+}
+
+function playWinSound() {
+  if (!audioCtx) return;
+  const notes = [261.63, 329.63, 392.00, 523.25, 659.25];
+  const now = audioCtx.currentTime;
+  notes.forEach((freq, idx) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.2, now + idx * 0.1);
+    gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.1 + 0.3);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now + idx * 0.1);
+    osc.stop(now + idx * 0.1 + 0.3);
+  });
+}
+
+/* --- TRADUCCIONES Y REGLAS --- */
+const translations = {
+  es: {
+    title: "KUDT",
+    passTitle: "CONTRASEÑA DE ACCESO",
+    passDesc: "Introduce la clave para acceder al juego:",
+    passBtn: "ENTRAR",
+    passErr: "Contraseña incorrecta",
+    rulesTitle: "REGLAS DEL JUEGO",
+    rulesText: "1. Encuentra todas las parejas de cartas normalmente.<br><br>2. Una vez descubiertas todas, tendrás <b>20 segundos</b> para memorizar sus posiciones mientras permanecen visibles.<br><br>3. Transcurrido ese tiempo, se voltearán de nuevo y deberás <b>sacarlas todas sin cometer ningún fallo</b>. Si fallas una sola vez, se reiniciará esta fase final.",
+    startBtn: "¡EMPEZAR!",
+    congrats: "¡Enhorabuena!",
+    msg: "Has completado la prueba perfecta sin fallar.",
+    copy: "Copiar",
+    copied: "¡Copiado!",
+    cert: "IR A CERTITUDE",
+    spoiler: "FOTO SPOILER",
+    timerText: "Memoriza: "
+  },
+  en: {
+    title: "KUDT",
+    passTitle: "ACCESS PASSWORD",
+    passDesc: "Enter the key to access the game:",
+    passBtn: "ENTER",
+    passErr: "Incorrect password",
+    rulesTitle: "GAME RULES",
+    rulesText: "1. Find all matching pairs as usual.<br><br>2. Once revealed, you will have <b>20 seconds</b> to memorize their positions while they remain visible.<br><br>3. When the time runs out, all cards will flip face down and you must <b>reveal them all without a single mistake</b>. If you fail once, this final phase resets.",
+    startBtn: "START!",
+    congrats: "Congratulations!",
+    msg: "You completed the perfect challenge without making any mistakes.",
+    copy: "Copy",
+    copied: "Copied!",
+    cert: "GO TO CERTITUDE",
+    spoiler: "SPOILER PHOTO",
+    timerText: "Memorize: "
+  },
+  fr: {
+    title: "KUDT",
+    passTitle: "MOT DE PASSE",
+    passDesc: "Entrez la clé pour accéder au jeu:",
+    passBtn: "ENTRER",
+    passErr: "Mot de passe incorrect",
+    rulesTitle: "RÈGLES DU JEU",
+    rulesText: "1. Trouvez toutes les paires normalement.<br><br>2. Une fois découvertes, vous aurez <b>20 secondes</b> pour mémoriser leurs positions.<br><br>3. Le temps écoulé, les cartes se retourneront et vous devrez <b>toutes les trouver sans aucune erreur</b>. Une erreur réinitialisera cette phase finale.",
+    startBtn: "COMMENCER!",
+    congrats: "Félicitations!",
+    msg: "Vous avez réussi l'épreuve parfaite sans aucune faute.",
+    copy: "Copier",
+    copied: "Copié!",
+    cert: "ALLER À CERTITUDE",
+    spoiler: "PHOTO SPOILER",
+    timerText: "Mémorisez: "
+  },
+  pt: {
+    title: "KUDT",
+    passTitle: "PALAVRA-PASSE",
+    passDesc: "Insira a chave para aceder ao jogo:",
+    passBtn: "ENTRAR",
+    passErr: "Palavra-passe incorreta",
+    rulesTitle: "REGRAS DO JOGO",
+    rulesText: "1. Encontre todos os pares normalmente.<br><br>2. Depois de descobertos, terá <b>20 segundos</b> para memorizar as suas posições.<br><br>3. Terminado esse tempo, as cartas voltam a virar-se e terá de <b>encontrá-las todas sem errar nenhuma vez</b>. Se falhar, esta fase final recomeça.",
+    startBtn: "COMEÇAR!",
+    congrats: "Parabéns!",
+    msg: "Completou o desafio perfeito sem cometer falhas.",
+    copy: "Copiar",
+    copied: "Copiado!",
+    cert: "IR PARA CERTITUDE",
+    spoiler: "FOTO SPOILER",
+    timerText: "Memorize: "
+  },
+  de: {
+    title: "KUDT",
+    passTitle: "ZUGANGSPASSWORT",
+    passDesc: "Gib den Schlüssel ein, um auf das Spiel zuzugreifen:",
+    passBtn: "EINTRETEN",
+    passErr: "Falsches Passwort",
+    rulesTitle: "SPIELREGELN",
+    rulesText: "1. Finde alle Paare wie gewohnt.<br><br>2. Sobald alle aufgedeckt sind, hast du <b>20 Sekunden</b> Zeit, um dir ihre Positionen zu merken.<br><br>3. Nach Ablauf der Zeit drehen sich alle Karten um und du musst <b>alle ohne ein único Fehlpaar aufdecken</b>. Bei einem Fehler startet diese finale Phase neu.",
+    startBtn: "STARTEN!",
+    congrats: "Glückwunsch!",
+    msg: "Du hast die meisterhafte Herausforderung fehlerfrei bestanden.",
+    copy: "Kopieren",
+    copied: "Kopiert!",
+    cert: "ZUR CERTITUDE",
+    spoiler: "SPOILER-FOTO",
+    timerText: "Merken: "
+  },
+  it: {
+    title: "KUDT",
+    passTitle: "PASSWORD DI ACCESSO",
+    passDesc: "Inserisci la chiave per accedere al gioco:",
+    passBtn: "ENTRA",
+    passErr: "Password errata",
+    rulesTitle: "REGOLE DEL GIOCO",
+    rulesText: "1. Trova tutte le coppie normalmente.<br><br>2. Una volta scoperte tutte, avrai <b>20 secondi</b> per memorizzare le loro posizioni.<br><br>3. Scaduto il tempo, le carte si gireranno di nuovo e dovrai <b>scoprirle tutte senza commettere alcun errore</b>. Se sbagli anche solo una volta, questa fase finale ricomincerà.",
+    startBtn: "INIZIA!",
+    congrats: "Congratulazioni!",
+    msg: "Hai completato la prova perfetta senza commettere errori.",
+    copy: "Copia",
+    copied: "Copiato!",
+    cert: "VAI A CERTITUDE",
+    spoiler: "FOTO SPOILER",
+    timerText: "Memorizza: "
+  }
+};
+
+/* --- ESTADO DEL JUEGO --- */
+const frontImages = ['1a.jpg', '2a.jpg', '3a.jpg', '4a.jpg', '5a.jpg', '6a.jpg', '7a.jpg', '8a.jpg'];
+const backImage = 'Carta.jpg';
+
+let cardData = [...frontImages, ...frontImages];
+let hasFlippedCard = false;
+let lockBoard = false;
+let firstCard, secondCard;
+let matchedPairs = 0;
+let currentLang = 'es';
+let gamePhase = 1; // 1 = Normal, 2 = Memorización (20s), 3 = Modo sin fallos
+let countdownTimer = null;
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function selectLanguage(lang) {
+  initAudio();
+  currentLang = lang;
+  document.getElementById('language-selector').style.display = 'none';
+
+  // Configurar textos del modal de contraseña
+  document.getElementById('pass-title').innerText = translations[lang].passTitle;
+  document.getElementById('pass-desc').innerText = translations[lang].passDesc;
+  document.getElementById('pass-btn').innerText = translations[lang].passBtn;
+  document.getElementById('pass-error').innerText = translations[lang].passErr;
+
+  // Mostrar modal de contraseña
+  document.getElementById('password-modal').style.display = 'flex';
+  document.getElementById('pass-input').focus();
+}
+
+function checkPassInput() {
+  document.getElementById('pass-error').style.display = 'none';
+}
+
+function validatePassword() {
+  const input = document.getElementById('pass-input').value.trim().toUpperCase();
+  if (input === 'TORRATE') {
+    document.getElementById('password-modal').style.display = 'none';
+
+    // Mostrar modal de reglas
+    document.getElementById('rules-title').innerText = translations[currentLang].rulesTitle;
+    document.getElementById('rules-text').innerHTML = translations[currentLang].rulesText;
+    document.getElementById('start-btn').innerText = translations[currentLang].startBtn;
+    document.getElementById('rules-modal').style.display = 'flex';
+  } else {
+    document.getElementById('pass-error').style.display = 'block';
+  }
+}
+
+// Permitir presionar Enter en la contraseña
+document.getElementById('pass-input').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    validatePassword();
+  }
+});
+
+function startMemoryPhase() {
+  document.getElementById('rules-modal').style.display = 'none';
+  document.getElementById('game-container').style.display = 'flex';
+  document.getElementById('game-title').innerText = translations[currentLang].title;
+  document.getElementById('modal-congrats').innerText = translations[currentLang].congrats;
+  document.getElementById('modal-message').innerText = translations[currentLang].msg;
+  document.getElementById('copy-button').innerText = translations[currentLang].copy;
+  document.getElementById('certitude-link').innerText = translations[currentLang].cert;
+  document.getElementById('spoiler-link').innerText = translations[currentLang].spoiler;
+  setupBoard();
+}
+
+function createImageElement(src, altName) {
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = altName;
+  img.onerror = function() {
+    if (img.src.includes('./')) {
+      img.src = src.replace('./', '');
+    } else {
+      const fallback = document.createElement('div');
+      fallback.className = 'img-fallback';
+      fallback.innerText = altName.replace(/\.(png|jpg|jpeg)/i, '');
+      if (img.parentNode) {
+        img.parentNode.replaceChild(fallback, img);
+      }
+    }
+  };
+  return img;
+}
+
+function setupBoard() {
+  gamePhase = 1;
+  matchedPairs = 0;
+  resetBoard();
+  
+  const gameBoard = document.getElementById('game-board');
+  gameBoard.innerHTML = '';
+  const shuffledCards = shuffle(cardData);
+  
+  shuffledCards.forEach(imgSrc => {
+    const card = document.createElement('div');
+    card.classList.add('card');
+    card.dataset.image = imgSrc;
+
+    // Cara Trasera (Reverso)
+    const cardBack = document.createElement('div');
+    cardBack.classList.add('card-face', 'card-back');
+    const backImg = createImageElement('./' + backImage, backImage);
+    cardBack.appendChild(backImg);
+
+    // Cara Delantera (Anverso)
+    const cardFront = document.createElement('div');
+    cardFront.classList.add('card-face', 'card-front');
+    const frontImg = createImageElement('./' + imgSrc, imgSrc);
+    cardFront.appendChild(frontImg);
+
+    card.appendChild(cardBack);
+    card.appendChild(cardFront);
+
+    card.addEventListener('click', flipCard);
+    gameBoard.appendChild(card);
+  });
+}
+
+function flipCard() {
+  if (lockBoard) return;
+  if (this === firstCard) return;
+  if (this.classList.contains('flip')) return;
+
+  playFlipSound();
+  this.classList.add('flip');
+
+  if (!hasFlippedCard) {
+    hasFlippedCard = true;
+    firstCard = this;
+    return;
+  }
+
+  secondCard = this;
+  checkForMatch();
+}
+
+function checkForMatch() {
+  let isMatch = firstCard.dataset.image === secondCard.dataset.image;
+
+  if (gamePhase === 1) {
+    // FASE 1: Juego normal
+    isMatch ? disableCards() : unflipCards();
+  } else if (gamePhase === 3) {
+    // FASE 3: Modo Sin Fallos
+    if (isMatch) {
+      playMatchSound();
+      matchedPairs++;
+      resetBoard();
+      if (matchedPairs === frontImages.length) {
+        setTimeout(() => {
+          playWinSound();
+          document.getElementById('end-modal').style.display = 'flex';
+        }, 500);
+      }
+    } else {
+      // Si falla en Fase 3: Reiniciar esta fase
+      lockBoard = true;
+      playMismatchSound();
+      setTimeout(() => {
+        resetPhase3();
+      }, 1000);
+    }
+  }
+}
+
+function disableCards() {
+  playMatchSound();
+  firstCard.removeEventListener('click', flipCard);
+  secondCard.removeEventListener('click', flipCard);
+  matchedPairs++;
+  resetBoard();
+
+  // Si completa la Fase 1 -> Pasar a Fase 2 (Memorización)
+  if (matchedPairs === frontImages.length) {
+    setTimeout(startPhase2, 600);
+  }
+}
+
+function unflipCards() {
+  lockBoard = true;
+  playMismatchSound();
+  setTimeout(() => {
+    firstCard.classList.remove('flip');
+    secondCard.classList.remove('flip');
+    resetBoard();
+  }, 900);
+}
+
+function resetBoard() {
+  [hasFlippedCard, lockBoard] = [false, false];
+  [firstCard, secondCard] = [null, null];
+}
+
+/* --- FASE 2: MEMORIZACIÓN (20 SEGUNDOS) --- */
+function startPhase2() {
+  gamePhase = 2;
+  lockBoard = true;
+  
+  const timerContainer = document.getElementById('timer-container');
+  const timerLabel = document.getElementById('timer-label');
+  const timerCount = document.getElementById('timer-count');
+  
+  timerLabel.innerText = translations[currentLang].timerText;
+  let timeLeft = 20;
+  timerCount.innerText = timeLeft;
+  timerContainer.style.display = 'block';
+
+  countdownTimer = setInterval(() => {
+    timeLeft--;
+    timerCount.innerText = timeLeft;
+    if (timeLeft <= 0) {
+      clearInterval(countdownTimer);
+      timerContainer.style.display = 'none';
+      startPhase3();
+    }
+  }, 1000);
+}
+
+/* --- FASE 3: MODO SIN FALLOS --- */
+function startPhase3() {
+  gamePhase = 3;
+  matchedPairs = 0;
+  
+  // Dar la vuelta a todas las cartas
+  const cards = document.querySelectorAll('.card');
+  cards.forEach(card => {
+    card.classList.remove('flip');
+    card.addEventListener('click', flipCard);
+  });
+  resetBoard();
+}
+
+function resetPhase3() {
+  matchedPairs = 0;
+  const cards = document.querySelectorAll('.card');
+  cards.forEach(card => {
+    card.classList.remove('flip');
+  });
+  resetBoard();
+}
+
+function copyCode() {
+  playFlipSound();
+  const codeText = document.getElementById('final-code').innerText;
+  const btn = document.getElementById('copy-button');
+  
+  navigator.clipboard.writeText(codeText).then(() => {
+    btn.innerText = translations[currentLang].copied;
+    btn.style.backgroundColor = 'var(--gc-light-green)';
+    setTimeout(() => {
+      btn.innerText = translations[currentLang].copy;
+      btn.style.backgroundColor = 'var(--gc-green)';
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>
